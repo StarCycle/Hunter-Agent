@@ -5,7 +5,7 @@ from hunter_agent.db.repo import TalentRepository
 from hunter_agent.services.talent_service import TalentService
 
 
-def run_skill_b(payload: dict, repo: TalentRepository) -> dict:
+def run_talent_database_sync(payload: dict, repo: TalentRepository) -> dict:
     input_obj = SkillBInput.model_validate(payload)
     service = TalentService(repo=repo)
     if input_obj.action == "find":

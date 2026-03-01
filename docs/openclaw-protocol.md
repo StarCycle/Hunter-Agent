@@ -7,13 +7,13 @@ This document fixes the JSON contract between OpenClaw and this project.
 - Protocol version: `v1`
 - Effective date: `2026-03-01`
 
-## Skill A: `arxiv-robotics-daily`
+## Daily ArXiv Paper Collector: `arxiv-robotics-daily`
 
-Purpose: query one day of arXiv robotics papers and return `author - affiliation - paper`.
+Purpose: query one day of arXiv robotics papers and return paper-level records with title, URL, author list, and raw affiliation clues.
 
 ### Input Schema
 
-- File: `docs/schemas/skill_a_input.schema.json`
+- File: `docs/schemas/arxiv_robotics_daily_input.schema.json`
 - Required fields:
   - `date` (`YYYY-MM-DD`)
 - Optional fields:
@@ -21,30 +21,28 @@ Purpose: query one day of arXiv robotics papers and return `author - affiliation
 
 ### Output Schema
 
-- File: `docs/schemas/skill_a_output.schema.json`
+- File: `docs/schemas/arxiv_robotics_daily_output.schema.json`
 - Fields:
   - `date`
   - `records[]`:
-    - `author_name`
-    - `affiliation` (nullable)
     - `paper_title`
-    - `arxiv_id`
     - `paper_url`
-    - `published_at` (nullable)
+    - `authors[]`
+    - `affiliation_info` (nullable, raw text snippet from arXiv HTML)
 
 ### Runtime Contract
 
-- Skill A may persist mentions into SQLite when `persist_mentions=true`.
-- arXiv API author affiliation is preferred.
-- If affiliation is missing, parser falls back to arXiv HTML meta tags.
+- Skill A may persist `paper` and `paper_author_mention` into SQLite when `persist_mentions=true`.
+- `affiliation_info` is extracted from `https://arxiv.org/html/<arxiv_id>` body text.
+- `affiliation_info` is intentionally unstructured for downstream LLM parsing in OpenClaw.
 
-## Skill B: `talent-db-sync`
+## Talent Database Sync: `talent-db-sync`
 
 Purpose: find existing profile by name or upsert profile into SQLite with dedup scoring.
 
 ### Input Schema
 
-- File: `docs/schemas/skill_b_input.schema.json`
+- File: `docs/schemas/talent_database_sync_input.schema.json`
 - `action = "find"`:
   - required: `name`
 - `action = "upsert"`:
@@ -52,8 +50,8 @@ Purpose: find existing profile by name or upsert profile into SQLite with dedup 
 
 ### Output Schemas
 
-- Find output: `docs/schemas/skill_b_find_output.schema.json`
-- Upsert output: `docs/schemas/skill_b_upsert_output.schema.json`
+- Find output: `docs/schemas/talent_database_sync_find_output.schema.json`
+- Upsert output: `docs/schemas/talent_database_sync_upsert_output.schema.json`
 
 `upsert` includes:
 

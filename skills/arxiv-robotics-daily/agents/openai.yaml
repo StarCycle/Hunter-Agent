@@ -1,5 +1,5 @@
 version: 1
 interface:
   display_name: Arxiv Robotics Daily
-  short_description: Fetch daily robotics authors from arXiv.
-  default_prompt: Collect author affiliation paper records for a date from arXiv robotics categories.
+  short_description: Fetch daily robotics papers with author lists from arXiv.
+  default_prompt: Collect daily arXiv robotics paper title, URL, authors, and raw affiliation_info from arXiv HTML.

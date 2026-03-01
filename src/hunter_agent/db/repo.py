@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlparse
 
-from hunter_agent.common.schemas import AuthorPaperRecord, TalentProfile
+from hunter_agent.common.schemas import ArxivPaperAffiliationRecord, TalentProfile
 from hunter_agent.common.utils import (
     normalize_email,
     normalize_name,
@@ -65,34 +66,41 @@ class TalentRepository:
             conn.close()
 
     def save_arxiv_mentions(
-        self, source_date: str, records: list[AuthorPaperRecord], categories: list[str]
+        self,
+        source_date: str,
+        records: list[ArxivPaperAffiliationRecord],
+        categories: list[str],
     ) -> int:
         conn = connect(self.db_path)
         try:
             count = 0
             for record in records:
+                arxiv_id = _extract_arxiv_id_from_url(record.paper_url)
+                if not arxiv_id:
+                    continue
                 paper_id = self._upsert_paper(
                     conn=conn,
-                    arxiv_id=record.arxiv_id,
+                    arxiv_id=arxiv_id,
                     title=record.paper_title,
-                    published_date=record.published_at,
+                    published_date=None,
                     categories=categories,
                 )
-                conn.execute(
-                    """
-                    INSERT INTO paper_author_mention
-                    (paper_id, talent_name, normalized_name, affiliation, source_date)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        paper_id,
-                        record.author_name,
-                        normalize_name(record.author_name),
-                        record.affiliation,
-                        source_date,
-                    ),
-                )
-                count += 1
+                for author_name in record.authors:
+                    conn.execute(
+                        """
+                        INSERT INTO paper_author_mention
+                        (paper_id, talent_name, normalized_name, affiliation, source_date)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            paper_id,
+                            author_name,
+                            normalize_name(author_name),
+                            None,
+                            source_date,
+                        ),
+                    )
+                    count += 1
             conn.commit()
             return count
         finally:
@@ -404,3 +412,10 @@ def _first_contact(contacts: list[sqlite3.Row], ctype: str) -> str | None:
         if row["type"] == ctype:
             return row["value"]
     return None
+
+
+def _extract_arxiv_id_from_url(url: str) -> str:
+    parsed = urlparse(url or "")
+    if not parsed.path:
+        return ""
+    return parsed.path.split("/")[-1].strip()

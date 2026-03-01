@@ -8,7 +8,9 @@ import unittest
 from hunter_agent.arxiv.client import ArxivClient
 from hunter_agent.arxiv.parser import ArxivHtmlParser
 from hunter_agent.db.repo import TalentRepository
-from hunter_agent.skills.skill_a_daily_arxiv import run_skill_a
+from hunter_agent.skills.arxiv_robotics_daily_collector import (
+    run_arxiv_robotics_daily_collector,
+)
 
 
 @unittest.skipUnless(
@@ -23,9 +25,13 @@ class TestSkillAIntegration(unittest.TestCase):
             repo = TalentRepository(Path(tmp_dir) / "hunter.db")
             repo.init_db()
 
-            result = run_skill_a(
+            result = run_arxiv_robotics_daily_collector(
                 payload={"date": query_date, "categories": ["cs.RO"]},
-                arxiv_client=ArxivClient(timeout_seconds=30, max_results=200),
+                arxiv_client=ArxivClient(
+                    timeout_seconds=30,
+                    max_results=200,
+                    local_timezone="Asia/Hong_Kong",
+                ),
                 html_parser=ArxivHtmlParser(timeout_seconds=30),
                 repo=repo,
                 persist_mentions=True,
@@ -36,13 +42,15 @@ class TestSkillAIntegration(unittest.TestCase):
 
             mentions = repo.export_table_rows("paper_author_mention")
             source_mentions = [m for m in mentions if m["source_date"] == query_date]
-            self.assertEqual(len(source_mentions), len(result["records"]))
+            expected_mentions = sum(len(item["authors"]) for item in result["records"])
+            self.assertEqual(len(source_mentions), expected_mentions)
 
             if result["records"]:
                 first = result["records"][0]
-                self.assertIn("author_name", first)
+                self.assertIn("authors", first)
                 self.assertIn("paper_title", first)
-                self.assertIn("arxiv_id", first)
+                self.assertIn("paper_url", first)
+                self.assertIn("affiliation_info", first)
 
 
 if __name__ == "__main__":

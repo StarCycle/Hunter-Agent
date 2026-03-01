@@ -1,6 +1,6 @@
 ---
 name: arxiv-robotics-daily
-description: Collect author-affiliation-paper lists from arXiv robotics papers for a given day. Use when OpenClaw needs daily robotics paper authors as upstream candidates.
+description: Collect daily arXiv robotics papers with title, url, author list, and raw affiliation_info extracted from arXiv HTML pages. Use when OpenClaw needs paper-level author context for downstream talent mining.
 ---
 
 # arxiv-robotics-daily
@@ -23,12 +23,10 @@ The script returns:
   "date": "2026-03-01",
   "records": [
     {
-      "author_name": "Author",
-      "affiliation": "Institution",
       "paper_title": "Paper Title",
-      "arxiv_id": "2603.00001",
       "paper_url": "https://arxiv.org/abs/2603.00001",
-      "published_at": "2026-03-01T12:00:00Z"
+      "authors": ["Author A", "Author B"],
+      "affiliation_info": "Raw text extracted from https://arxiv.org/html/<id>, usually containing title/author block and possible institution clues."
     }
   ]
 }
@@ -36,5 +34,5 @@ The script returns:
 
 ## Notes
 
-- Prefer API author affiliation when available.
-- Use arXiv abstract page metadata fallback when affiliation is missing.
+- `affiliation_info` is intentionally unstructured raw text for LLM parsing downstream.
+- Keep output paper-level to reduce token usage.

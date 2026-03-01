@@ -3,14 +3,17 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
 from hunter_agent.arxiv.client import ArxivClient
 from hunter_agent.arxiv.parser import ArxivHtmlParser
 from hunter_agent.config import get_settings
 from hunter_agent.db.repo import TalentRepository
 from hunter_agent.services.export_service import ExportService
-from hunter_agent.skills.skill_a_daily_arxiv import run_skill_a
-from hunter_agent.skills.skill_b_talent_db import run_skill_b
+from hunter_agent.skills.arxiv_robotics_daily_collector import (
+    run_arxiv_robotics_daily_collector,
+)
+from hunter_agent.skills.talent_database_sync import run_talent_database_sync
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("init-db")
 
-    parser_a = sub.add_parser("skill-a")
+    parser_a = sub.add_parser("arxiv-daily-authors")
     parser_a.add_argument("--date", required=True, help="YYYY-MM-DD")
     parser_a.add_argument(
         "--categories",
@@ -29,14 +32,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser_a.add_argument(
         "--persist-mentions",
         action="store_true",
-        help="Persist author-paper mentions to SQLite.",
+        help="Persist paper/author mentions to SQLite.",
     )
     parser_a.add_argument("--out-json", default="", help="Optional output JSON path.")
 
-    parser_b_find = sub.add_parser("skill-b-find")
+    parser_b_find = sub.add_parser("talent-find")
     parser_b_find.add_argument("--name", required=True)
 
-    parser_b_upsert = sub.add_parser("skill-b-upsert")
+    parser_b_upsert = sub.add_parser("talent-upsert")
     parser_b_upsert.add_argument(
         "--json",
         required=True,
@@ -58,39 +61,44 @@ def main() -> None:
 
     if args.command == "init-db":
         repo.init_db()
-        print(json.dumps({"ok": True, "db_path": str(settings.db_path)}, ensure_ascii=False))
+        _print_json({"ok": True, "db_path": str(settings.db_path)})
         return
 
-    if args.command == "skill-a":
+    if args.command == "arxiv-daily-authors":
+        _log_step("Initializing database")
         repo.init_db()
         categories = [item.strip() for item in args.categories.split(",") if item.strip()]
         payload = {"date": args.date, "categories": categories}
-        result = run_skill_a(
+        _log_step("Starting daily arXiv paper collection")
+        result = run_arxiv_robotics_daily_collector(
             payload=payload,
             arxiv_client=ArxivClient(
                 timeout_seconds=settings.http_timeout_seconds,
                 max_results=settings.arxiv_max_results,
+                local_timezone=settings.arxiv_local_timezone,
             ),
             html_parser=ArxivHtmlParser(timeout_seconds=settings.http_timeout_seconds),
             repo=repo,
             persist_mentions=args.persist_mentions,
+            progress_cb=_log_step,
         )
+        _log_step("Writing output")
         _write_json_output(result, args.out_json)
         return
 
-    if args.command == "skill-b-find":
+    if args.command == "talent-find":
         repo.init_db()
         payload = {"action": "find", "name": args.name}
-        result = run_skill_b(payload=payload, repo=repo)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        result = run_talent_database_sync(payload=payload, repo=repo)
+        _print_json(result, indent=2)
         return
 
-    if args.command == "skill-b-upsert":
+    if args.command == "talent-upsert":
         repo.init_db()
         payload_path = Path(args.json)
         payload = json.loads(payload_path.read_text(encoding="utf-8"))
-        result = run_skill_b(payload=payload, repo=repo)
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        result = run_talent_database_sync(payload=payload, repo=repo)
+        _print_json(result, indent=2)
         return
 
     if args.command == "export":
@@ -103,7 +111,7 @@ def main() -> None:
             path = exporter.export_flat_csv(output)
         else:
             path = exporter.export_xlsx(output)
-        print(json.dumps({"ok": True, "output": str(path)}, ensure_ascii=False))
+        _print_json({"ok": True, "output": str(path)})
         return
 
     raise RuntimeError(f"Unsupported command: {args.command}")
@@ -116,7 +124,16 @@ def _write_json_output(payload: dict, out_json: str) -> None:
         out_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    _print_json(payload, indent=2)
+
+
+def _print_json(payload: dict, indent: int | None = None) -> None:
+    text = json.dumps(payload, ensure_ascii=False, indent=indent)
+    sys.stdout.buffer.write((text + "\n").encode("utf-8", errors="replace"))
+
+
+def _log_step(message: str) -> None:
+    print(f"[arxiv-daily-authors] {message}", file=sys.stderr, flush=True)
 
 
 def _resolve_export_output(fmt: str, explicit_out: str, export_dir: Path) -> Path:

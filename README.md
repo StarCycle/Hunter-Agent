@@ -2,34 +2,40 @@
 
 ## 1. 基本介绍
 
-`hunter-agent` 是一个用于猎头业务的人才线索采集与入库项目，核心目标是：
+`hunter-agent` 是一个面向猎头业务的人才线索系统，聚焦具身智能方向。
 
-1. 从 arXiv 指定日期的机器人相关论文中提取 `作者-机构-论文` 信息（Skill A）。
-2. 将候选人信息写入 SQLite 人才库，并支持查重、更新、补全（Skill B）。
-3. 将数据库导出为 CSV/XLSX，方便交付业务团队使用。
+项目包含两个核心能力：
 
-项目默认面向 OpenClaw 的技能调用方式设计，也支持本地 CLI 独立运行。
+1. `arxiv-robotics-daily`：按“本地日期”抓取 arXiv 机器人论文作者清单（作者、机构、论文）。
+2. `talent-db-sync`：对人才数据库执行查询、去重、更新、新增，并支持导出。
+
+数据库默认使用 SQLite，支持导出为 CSV/XLSX，方便业务侧直接消费。
 
 ## 2. Quick Start
 
-在仓库根目录执行以下命令（PowerShell）：
+在仓库根目录执行（PowerShell）：
 
 ```powershell
 python -m pip install -e .
 python -m hunter_agent.cli init-db
 ```
 
-运行 Skill A（按日期抓 arXiv）：
+运行“每日 arXiv 作者采集”：
 
 ```powershell
-python -m hunter_agent.cli skill-a --date 2026-03-01 --categories cs.RO
+python -m hunter_agent.cli arxiv-daily-authors --date 2026-02-27 --categories cs.RO
 ```
 
-运行 Skill B（写入或更新人才）：
+运行“人才库同步（新增/更新）”：
 
 ```powershell
-python -m hunter_agent.cli skill-b-upsert --json .\examples\sample_profile.json
-python -m hunter_agent.cli skill-b-find --name 李雷
+python -m hunter_agent.cli talent-upsert --json .\examples\sample_profile.json
+```
+
+运行“人才库查询”：
+
+```powershell
+python -m hunter_agent.cli talent-find --name 李雷
 ```
 
 导出数据：
@@ -41,26 +47,23 @@ python -m hunter_agent.cli export --format xlsx --out .\exports\talents.xlsx
 
 ## 3. 代码架构和原理
 
-目录结构（核心）：
+核心目录：
 
-1. `src/hunter_agent/arxiv`：Skill A 的 arXiv API 抓取、HTML 补充解析、按日聚合。
-2. `src/hunter_agent/skills`：Skill A/Skill B 对外统一入口。
-3. `src/hunter_agent/db`：SQLite 连接、迁移、仓储层（CRUD 与落库逻辑）。
-4. `src/hunter_agent/services`：业务服务层，包括导出服务和去重评分服务。
-5. `src/hunter_agent/common`：Pydantic 模型、通用工具、枚举定义。
-6. `docs/openclaw-protocol.md` 与 `docs/schemas/*.json`：OpenClaw 调用协议与 JSON Schema。
-7. `skills/*`：OpenClaw skill 封装目录（`run.py` + `SKILL.md`）。
+1. `src/hunter_agent/arxiv`：arXiv API 抓取、HTML 机构补全、按日聚合。
+2. `src/hunter_agent/skills`：两个业务能力的统一调用入口。
+3. `src/hunter_agent/db`：SQLite 连接、迁移、仓储层。
+4. `src/hunter_agent/services`：导出服务、去重评分服务。
+5. `src/hunter_agent/common`：Schema、枚举、日期与归一化工具。
+6. `skills/*`：OpenClaw 技能封装（`SKILL.md + scripts/run.py`）。
+7. `docs/openclaw-protocol.md` 与 `docs/schemas/*.json`：固定的调用协议与 JSON Schema。
 
-工作原理（主流程）：
+关键原理：
 
-1. OpenClaw 先调用 Skill A，输入日期，输出当日 `作者-机构-论文` 清单。
-2. OpenClaw 根据作者进一步搜集联系方式、学历、经历等信息。
-3. OpenClaw 调用 Skill B 进行 `find/upsert`，写入或更新人才库。
-4. Repository 内部使用“模糊匹配 + 冲突评分”去重策略：
-   - 姓名相似度、联系方式一致性、机构信息共同参与评分。
-   - 联系方式冲突会触发硬冲突，避免误合并。
-   - 分数达到阈值且无硬冲突时更新，否则新建人才记录。
-5. 最后通过导出服务生成 CSV/XLSX 给业务侧消费。
+1. 日期抓取使用“本地时区日期 -> UTC 时间窗”转换，避免东八区按 UTC 查询导致漏数。
+2. 人才去重采用“模糊匹配 + 冲突评分”：
+   - 姓名相似度、联系方式一致性、机构信息共同计分；
+   - 联系方式冲突触发硬冲突，强制新建，避免误合并。
+3. 采集链路支持“抓取后落库 paper / paper_author_mention”，便于追溯来源。
 
 ## 4. 如何测试
 
@@ -70,20 +73,20 @@ python -m hunter_agent.cli export --format xlsx --out .\exports\talents.xlsx
 python -m unittest discover -s tests -v
 ```
 
-只运行 Skill B（去重策略）测试：
+只运行人才库同步相关测试：
 
 ```powershell
-python -m unittest tests.test_skill_b -v
+python -m unittest tests.test_talent_database_sync -v
 ```
 
-运行 Skill A 联网集成测试（会访问 arXiv）：
+运行 arXiv 联网集成测试（会访问网络）：
 
 ```powershell
 $env:RUN_INTEGRATION='1'
-python -m unittest tests.test_skill_a_integration -v
+python -m unittest tests.test_arxiv_robotics_daily_collector_integration -v
 ```
 
 说明：
 
-1. 不设置 `RUN_INTEGRATION=1` 时，联网集成测试会自动跳过。
-2. 集成测试使用固定历史日期，验证“抓取 + 落库”完整链路。
+1. 未设置 `RUN_INTEGRATION=1` 时，联网测试会自动跳过。
+2. 命令 `arxiv-daily-authors` 会在终端打印执行步骤（请求、解析、落库进度）。

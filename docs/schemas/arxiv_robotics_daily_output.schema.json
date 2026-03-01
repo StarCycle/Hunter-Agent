@@ -1,36 +1,23 @@
 {
   "$defs": {
-    "AuthorPaperRecord": {
+    "ArxivPaperAffiliationRecord": {
       "properties": {
-        "author_name": {
-          "title": "Author Name",
-          "type": "string"
-        },
-        "affiliation": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Affiliation"
-        },
         "paper_title": {
           "title": "Paper Title",
-          "type": "string"
-        },
-        "arxiv_id": {
-          "title": "Arxiv Id",
           "type": "string"
         },
         "paper_url": {
           "title": "Paper Url",
           "type": "string"
         },
-        "published_at": {
+        "authors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "affiliation_info": {
           "anyOf": [
             {
               "type": "string"
@@ -40,16 +27,14 @@
             }
           ],
           "default": null,
-          "title": "Published At"
+          "title": "Affiliation Info"
         }
       },
       "required": [
-        "author_name",
         "paper_title",
-        "arxiv_id",
         "paper_url"
       ],
-      "title": "AuthorPaperRecord",
+      "title": "ArxivPaperAffiliationRecord",
       "type": "object"
     }
   },
@@ -60,7 +45,7 @@
     },
     "records": {
       "items": {
-        "$ref": "#/$defs/AuthorPaperRecord"
+        "$ref": "#/$defs/ArxivPaperAffiliationRecord"
       },
       "title": "Records",
       "type": "array"

@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 import requests
 
 from hunter_agent.arxiv.client import ArxivPaper
-from hunter_agent.common.utils import normalize_name
 
 
 class ArxivHtmlParser:
@@ -12,49 +11,86 @@ class ArxivHtmlParser:
         self.timeout_seconds = timeout_seconds
         self.session = requests.Session()
 
-    def enrich_missing_affiliations(self, paper: ArxivPaper) -> ArxivPaper:
-        if not paper.paper_url:
+    def enrich_affiliation_info(self, paper: ArxivPaper) -> ArxivPaper:
+        html_url = paper.html_url or ""
+        if not html_url:
             return paper
-        if not any(not author.affiliation for author in paper.authors):
-            return paper
-        author_pairs = self.fetch_author_affiliations(paper.paper_url)
-        if not author_pairs:
-            return paper
-
-        aff_by_name = {normalize_name(name): aff for name, aff in author_pairs if aff}
-        for idx, author in enumerate(paper.authors):
-            if author.affiliation:
-                continue
-            exact = aff_by_name.get(normalize_name(author.name))
-            if exact:
-                author.affiliation = exact
-                continue
-            if idx < len(author_pairs):
-                author.affiliation = author_pairs[idx][1]
+        paper.affiliation_info = self.fetch_affiliation_info(html_url)
         return paper
 
-    def fetch_author_affiliations(self, paper_url: str) -> list[tuple[str, str | None]]:
-        response = self.session.get(paper_url, timeout=self.timeout_seconds)
-        response.raise_for_status()
+    def fetch_affiliation_info(self, html_url: str) -> str | None:
+        try:
+            response = self.session.get(html_url, timeout=self.timeout_seconds)
+            response.raise_for_status()
+        except requests.RequestException:
+            return None
+
         soup = BeautifulSoup(response.text, "html.parser")
+        snippet = self._extract_by_ltx_header_blocks(soup)
+        if snippet:
+            return snippet
+        return self._extract_by_body_fallback(soup)
 
-        names = [
-            node.get("content", "").strip()
-            for node in soup.find_all("meta", attrs={"name": "citation_author"})
-            if node.get("content")
-        ]
-        insts = [
-            node.get("content", "").strip()
-            for node in soup.find_all(
-                "meta", attrs={"name": "citation_author_institution"}
-            )
-            if node.get("content")
-        ]
-        if not names:
-            return []
+    def _extract_by_ltx_header_blocks(self, soup: BeautifulSoup) -> str | None:
+        title_node = soup.select_one(".ltx_title_document")
+        title_text = _clean_whitespace(title_node.get_text(" ", strip=True)) if title_node else ""
 
-        pairs: list[tuple[str, str | None]] = []
-        for idx, name in enumerate(names):
-            affiliation = insts[idx] if idx < len(insts) else None
-            pairs.append((name, affiliation))
-        return pairs
+        creator_node = soup.select_one(".ltx_authors") or soup.select_one(".ltx_creator")
+        creator_text = (
+            _clean_whitespace(creator_node.get_text(" ", strip=True)) if creator_node else ""
+        )
+
+        lines: list[str] = []
+        if title_text:
+            lines.append(f"Title: {title_text}")
+        if creator_text:
+            lines.append(f"AuthorsAndAffiliations: {creator_text}")
+
+        if not lines:
+            return None
+        snippet = "\n".join(lines).strip()
+        if len(snippet) > 1800:
+            snippet = snippet[:1800].rstrip()
+        return snippet or None
+
+    def _extract_by_body_fallback(self, soup: BeautifulSoup) -> str | None:
+        body = soup.body
+        if body is None:
+            return None
+        raw_text = body.get_text("\n", strip=True)
+        if not raw_text:
+            return None
+        lines = [_clean_whitespace(line) for line in raw_text.splitlines() if line.strip()]
+        if not lines:
+            return None
+
+        blocked = {
+            "Report GitHub Issue",
+            "Submit without GitHub",
+            "Submit in GitHub",
+            "Back to arXiv",
+            "Why HTML?",
+            "Report Issue",
+            "Back to Abstract",
+            "Download PDF",
+        }
+        snippet_lines: list[str] = []
+        for line in lines[:120]:
+            if line in blocked:
+                continue
+            if line.lower().startswith("abstract"):
+                break
+            snippet_lines.append(line)
+            if len(snippet_lines) >= 25:
+                break
+        if not snippet_lines:
+            return None
+
+        snippet = "\n".join(snippet_lines).strip()
+        if len(snippet) > 1800:
+            snippet = snippet[:1800].rstrip()
+        return snippet or None
+
+
+def _clean_whitespace(text: str) -> str:
+    return " ".join((text or "").split())

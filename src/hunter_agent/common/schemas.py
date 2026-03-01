@@ -12,18 +12,16 @@ class ArxivSkillInput(BaseModel):
     categories: list[str] = Field(default_factory=lambda: ["cs.RO"])
 
 
-class AuthorPaperRecord(BaseModel):
-    author_name: str
-    affiliation: str | None = None
+class ArxivPaperAffiliationRecord(BaseModel):
     paper_title: str
-    arxiv_id: str
     paper_url: str
-    published_at: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    affiliation_info: str | None = None
 
 
 class ArxivSkillOutput(BaseModel):
     date: str
-    records: list[AuthorPaperRecord]
+    records: list[ArxivPaperAffiliationRecord]
 
 
 class TalentProfile(BaseModel):

@@ -16,7 +16,7 @@ _bootstrap_pythonpath()
 
 from hunter_agent.config import get_settings  # noqa: E402
 from hunter_agent.db.repo import TalentRepository  # noqa: E402
-from hunter_agent.skills.skill_b_talent_db import run_skill_b  # noqa: E402
+from hunter_agent.skills.talent_database_sync import run_talent_database_sync  # noqa: E402
 
 
 def main() -> None:
@@ -25,7 +25,7 @@ def main() -> None:
     settings = get_settings()
     repo = TalentRepository(db_path=settings.db_path)
     repo.init_db()
-    result = run_skill_b(payload=payload, repo=repo)
+    result = run_talent_database_sync(payload=payload, repo=repo)
     sys.stdout.write(json.dumps(result, ensure_ascii=False))
 
 

@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from hunter_agent.db.repo import TalentRepository
-from hunter_agent.skills.skill_b_talent_db import run_skill_b
+from hunter_agent.skills.talent_database_sync import run_talent_database_sync
 
 
 class TestSkillB(unittest.TestCase):
@@ -27,13 +27,13 @@ class TestSkillB(unittest.TestCase):
                     "grade_or_years": "2 years",
                 },
             }
-            upsert_result = run_skill_b(upsert_payload, repo=repo)
+            upsert_result = run_talent_database_sync(upsert_payload, repo=repo)
             self.assertEqual(upsert_result["action"], "upsert")
             self.assertEqual(upsert_result["profile"]["talent"]["name"], "Zhang San")
             self.assertIn("dedup", upsert_result["profile"])
 
             find_payload = {"action": "find", "name": "Zhang San"}
-            find_result = run_skill_b(find_payload, repo=repo)
+            find_result = run_talent_database_sync(find_payload, repo=repo)
             self.assertEqual(find_result["action"], "find")
             self.assertEqual(len(find_result["matches"]), 1)
             self.assertEqual(
@@ -45,7 +45,7 @@ class TestSkillB(unittest.TestCase):
             repo = TalentRepository(Path(tmp_dir) / "hunter.db")
             repo.init_db()
 
-            run_skill_b(
+            run_talent_database_sync(
                 {
                     "action": "upsert",
                     "profile": {
@@ -55,7 +55,7 @@ class TestSkillB(unittest.TestCase):
                 },
                 repo=repo,
             )
-            run_skill_b(
+            run_talent_database_sync(
                 {
                     "action": "upsert",
                     "profile": {
@@ -76,7 +76,7 @@ class TestSkillB(unittest.TestCase):
             repo = TalentRepository(Path(tmp_dir) / "hunter.db")
             repo.init_db()
 
-            first = run_skill_b(
+            first = run_talent_database_sync(
                 {
                     "action": "upsert",
                     "profile": {
@@ -86,7 +86,7 @@ class TestSkillB(unittest.TestCase):
                 },
                 repo=repo,
             )
-            second = run_skill_b(
+            second = run_talent_database_sync(
                 {
                     "action": "upsert",
                     "profile": {
@@ -105,7 +105,7 @@ class TestSkillB(unittest.TestCase):
             repo = TalentRepository(Path(tmp_dir) / "hunter.db")
             repo.init_db()
 
-            run_skill_b(
+            run_talent_database_sync(
                 {
                     "action": "upsert",
                     "profile": {
@@ -115,7 +115,7 @@ class TestSkillB(unittest.TestCase):
                 },
                 repo=repo,
             )
-            conflict = run_skill_b(
+            conflict = run_talent_database_sync(
                 {
                     "action": "upsert",
                     "profile": {
