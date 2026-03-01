@@ -1,0 +1,158 @@
+{
+  "$defs": {
+    "TalentProfile": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "wechat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wechat"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "project_categories": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Project Categories",
+          "type": "array"
+        },
+        "education": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Education"
+        },
+        "institution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Institution"
+        },
+        "grade_or_years": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grade Or Years"
+        },
+        "resume_pdf": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resume Pdf"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "TalentProfile",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "action": {
+      "enum": [
+        "find",
+        "upsert"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TalentProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "title": "SkillBInput",
+  "type": "object"
+}

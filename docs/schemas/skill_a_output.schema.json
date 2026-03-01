@@ -1,0 +1,75 @@
+{
+  "$defs": {
+    "AuthorPaperRecord": {
+      "properties": {
+        "author_name": {
+          "title": "Author Name",
+          "type": "string"
+        },
+        "affiliation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Affiliation"
+        },
+        "paper_title": {
+          "title": "Paper Title",
+          "type": "string"
+        },
+        "arxiv_id": {
+          "title": "Arxiv Id",
+          "type": "string"
+        },
+        "paper_url": {
+          "title": "Paper Url",
+          "type": "string"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published At"
+        }
+      },
+      "required": [
+        "author_name",
+        "paper_title",
+        "arxiv_id",
+        "paper_url"
+      ],
+      "title": "AuthorPaperRecord",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "date": {
+      "title": "Date",
+      "type": "string"
+    },
+    "records": {
+      "items": {
+        "$ref": "#/$defs/AuthorPaperRecord"
+      },
+      "title": "Records",
+      "type": "array"
+    }
+  },
+  "required": [
+    "date",
+    "records"
+  ],
+  "title": "ArxivSkillOutput",
+  "type": "object"
+}

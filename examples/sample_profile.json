@@ -1,0 +1,19 @@
+{
+  "action": "upsert",
+  "profile": {
+    "name": "李雷",
+    "wechat": "lilei_robotics",
+    "phone": "+86 13800138000",
+    "email": "lilei@example.com",
+    "project_categories": [
+      "Manipulation算法",
+      "机器人底层控制和软件",
+      "其它:柔性抓取"
+    ],
+    "education": "硕士",
+    "institution": "某某大学",
+    "grade_or_years": "3年",
+    "resume_pdf": "https://example.com/lilei_resume.pdf",
+    "notes": "来自arXiv作者线索"
+  }
+}
