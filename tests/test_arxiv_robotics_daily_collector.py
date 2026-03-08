@@ -22,6 +22,7 @@ class _FakeArxivClient:
                     ArxivAuthor(name="Alice Smith"),
                     ArxivAuthor(name="Bob Lee"),
                 ],
+                summary="This paper explores embodied manipulation.",
             )
         ]
 
@@ -51,6 +52,7 @@ class TestArxivRoboticsDailyCollector(unittest.TestCase):
         self.assertEqual(first["paper_url"], "https://arxiv.org/abs/2603.00001v1")
         self.assertEqual(first["authors"], ["Alice Smith", "Bob Lee"])
         self.assertIn("University A", first["affiliation_info"])
+        self.assertEqual(first["paper_summary"], "This paper explores embodied manipulation.")
 
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ class ArxivPaper:
     categories: list[str] = field(default_factory=list)
     authors: list[ArxivAuthor] = field(default_factory=list)
     affiliation_info: str | None = None
+    summary: str | None = None
 
 
 class ArxivClient:
@@ -95,6 +96,8 @@ class ArxivClient:
                 name = author.findtext("atom:name", default="", namespaces=NS).strip()
                 if name:
                     authors.append(ArxivAuthor(name=name))
+            raw_summary = entry.findtext("atom:summary", default="", namespaces=NS).strip()
+            summary = " ".join(raw_summary.split()) if raw_summary else None
             if arxiv_id and title:
                 papers.append(
                     ArxivPaper(
@@ -105,6 +108,7 @@ class ArxivClient:
                         published_at=published_at,
                         categories=categories,
                         authors=authors,
+                        summary=summary,
                     )
                 )
         return papers

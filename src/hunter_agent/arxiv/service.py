@@ -40,6 +40,7 @@ class ArxivDailyService:
                     paper_url=paper.paper_url,
                     authors=[author.name for author in paper.authors],
                     affiliation_info=paper.affiliation_info,
+                    paper_summary=paper.summary,
                 )
             )
             if progress_cb and (index == total or index % 20 == 0):

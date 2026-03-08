@@ -51,6 +51,7 @@ class TestSkillAIntegration(unittest.TestCase):
                 self.assertIn("paper_title", first)
                 self.assertIn("paper_url", first)
                 self.assertIn("affiliation_info", first)
+                self.assertIn("paper_summary", first)
 
 
 if __name__ == "__main__":

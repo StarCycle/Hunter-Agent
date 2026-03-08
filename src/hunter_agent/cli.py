@@ -13,7 +13,10 @@ from hunter_agent.services.export_service import ExportService
 from hunter_agent.skills.arxiv_robotics_daily_collector import (
     run_arxiv_robotics_daily_collector,
 )
-from hunter_agent.skills.talent_database_sync import run_talent_database_sync
+from hunter_agent.skills.talent_database_sync import (
+    run_talent_database_bulk_upsert,
+    run_talent_database_sync,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,8 +49,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to JSON containing action=upsert payload.",
     )
 
+    parser_b_bulk = sub.add_parser("talent-bulk-upsert")
+    parser_b_bulk.add_argument(
+        "--json",
+        required=True,
+        help="Path to JSON containing a list of talent profiles for batch upsert.",
+    )
+
     parser_export = sub.add_parser("export")
-    parser_export.add_argument("--format", choices=["csv", "xlsx"], default="xlsx")
     parser_export.add_argument("--out", required=False, default="")
 
     return parser
@@ -101,16 +110,19 @@ def main() -> None:
         _print_json(result, indent=2)
         return
 
+    if args.command == "talent-bulk-upsert":
+        repo.init_db()
+        payload_path = Path(args.json)
+        payload = json.loads(payload_path.read_text(encoding="utf-8"))
+        result = run_talent_database_bulk_upsert(payload=payload, repo=repo)
+        _print_json(result, indent=2)
+        return
+
     if args.command == "export":
         repo.init_db()
         exporter = ExportService(repo=repo)
-        output = _resolve_export_output(
-            fmt=args.format, explicit_out=args.out, export_dir=settings.export_dir
-        )
-        if args.format == "csv":
-            path = exporter.export_flat_csv(output)
-        else:
-            path = exporter.export_xlsx(output)
+        output = _resolve_export_output(explicit_out=args.out, export_dir=settings.export_dir)
+        path = exporter.export_flat_csv(output)
         _print_json({"ok": True, "output": str(path)})
         return
 
@@ -136,13 +148,11 @@ def _log_step(message: str) -> None:
     print(f"[arxiv-daily-authors] {message}", file=sys.stderr, flush=True)
 
 
-def _resolve_export_output(fmt: str, explicit_out: str, export_dir: Path) -> Path:
+def _resolve_export_output(explicit_out: str, export_dir: Path) -> Path:
     if explicit_out:
         return Path(explicit_out)
     export_dir.mkdir(parents=True, exist_ok=True)
-    if fmt == "csv":
-        return export_dir / "talents.csv"
-    return export_dir / "talents.xlsx"
+    return export_dir / "talents.csv"
 
 
 if __name__ == "__main__":

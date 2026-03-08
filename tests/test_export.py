@@ -10,7 +10,7 @@ from hunter_agent.services.export_service import ExportService
 
 
 class TestExportService(unittest.TestCase):
-    def test_export_csv_and_xlsx(self) -> None:
+    def test_export_csv(self) -> None:
         with TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             repo = TalentRepository(tmp_path / "hunter.db")
@@ -26,12 +26,9 @@ class TestExportService(unittest.TestCase):
             exporter = ExportService(repo=repo)
 
             csv_path = exporter.export_flat_csv(tmp_path / "talents.csv")
-            xlsx_path = exporter.export_xlsx(tmp_path / "talents.xlsx")
 
             self.assertTrue(csv_path.exists())
-            self.assertTrue(xlsx_path.exists())
             self.assertGreater(csv_path.stat().st_size, 0)
-            self.assertGreater(xlsx_path.stat().st_size, 0)
 
 
 if __name__ == "__main__":

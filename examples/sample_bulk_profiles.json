@@ -1,0 +1,25 @@
+{
+  "profiles": [
+    {
+      "name": "Batch Alpha",
+      "wechat": "batch_alpha",
+      "email": "batch.alpha@example.com",
+      "project_categories": [
+        "Manipulation绠楁硶"
+      ],
+      "education": "PhD candidate",
+      "institution": "Robotics Lab A",
+      "notes": "Example for batch upload"
+    },
+    {
+      "name": "Batch Beta",
+      "phone": "+86 13900000002",
+      "project_categories": [
+        "鍏跺畠:Custom Hardware"
+      ],
+      "education": "Master",
+      "institution": "Robotics Lab B",
+      "grade_or_years": "2 years"
+    }
+  ]
+}

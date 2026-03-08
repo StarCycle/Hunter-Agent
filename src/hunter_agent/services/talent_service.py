@@ -13,3 +13,6 @@ class TalentService:
 
     def upsert(self, profile: TalentProfile) -> dict:
         return self.repo.upsert_talent(profile)
+
+    def bulk_upsert(self, profiles: list[TalentProfile]) -> list[dict]:
+        return [self.upsert(profile) for profile in profiles]

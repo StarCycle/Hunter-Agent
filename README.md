@@ -1,92 +1,100 @@
-# hunter-agent
+﻿# hunter-agent
 
 ## 1. 基本介绍
 
-`hunter-agent` 是一个面向猎头业务的人才线索系统，聚焦具身智能方向。
+`hunter-agent` 是一个面向具身智能人才挖掘的工具集，核心包含两个 OpenClaw skill：
 
-项目包含两个核心能力：
+1. `arxiv-robotics-daily`：按日期抓取 arXiv 论文，输出论文标题、链接、作者、affiliation 原文、摘要。
+2. `talent-db-sync`：将作者信息写入 SQLite 人才库（去重 + 更新），并支持直接导出 CSV。
 
-1. `arxiv-robotics-daily`：按“本地日期”抓取 arXiv 机器人论文作者清单（作者、机构、论文）。
-2. `talent-db-sync`：对人才数据库执行查询、去重、更新、新增，并支持导出。
-
-数据库默认使用 SQLite，支持导出为 CSV/XLSX，方便业务侧直接消费。
+默认数据库是 SQLite，导出格式为 CSV。
 
 ## 2. Quick Start
 
-在仓库根目录执行（PowerShell）：
+1. 自动安装（推荐）
 
 ```powershell
-python -m pip install -e .
-python -m hunter_agent.cli init-db
+.\scripts\sync-openclaw.ps1
 ```
 
-运行“每日 arXiv 作者采集”：
+脚本会把 skill 和 `src/hunter_agent` 同步到 `%USERPROFILE%\.openclaw\workspace`，并执行 `python -m pip install -e .`（强制重装模式）。
 
-```powershell
-python -m hunter_agent.cli arxiv-daily-authors --date 2026-02-27 --categories cs.RO
+2. 手动安装
+
+- 把 `skills/arxiv-robotics-daily` 和 `skills/talent-db-sync` 复制到 `%USERPROFILE%\.openclaw\workspace\skills`。
+- 把 `src/hunter_agent` 复制到 `%USERPROFILE%\.openclaw\workspace\src\hunter_agent`。
+- 在仓库根目录执行：`python -m pip install -e .`。
+
+3. OpenClaw 定时任务推荐 Prompt（昨日论文 -> 人才库 -> CSV）
+
+```text
+使用 arxiv-robotics-daily skill 抓取“昨天”arXiv 上具身智能相关论文（返回题目、作者、affiliation、摘要）。
+
+然后基于返回结果执行以下流程：
+1) 只保留疑似华人作者，忽略非华人作者；
+2) 从 affiliation 信息中提取作者任职机构/学校；
+3) 对每位保留作者进行联网检索，补充其在该机构任职年限，或在校阶段（本科/硕士/博士/博后）与年级；若无法确认请标记为未知；
+4) 基于论文摘要为作者判定研究领域，可多选，类别必须使用 talent-db-sync 文档中的 project_categories；
+5) 将每位作者整理为 talent-db-sync 的 upsert payload 并写入人才库；
+6) 最后调用 talent-db-sync 的 export 动作，把全量人才库导出到 ~/.openclaw/workspace/exports/talents.csv。
+
+输出：
+- 昨日华人作者清单（姓名、机构、任职/在校阶段、研究领域、信息来源摘要）；
+- upsert 执行结果统计（insert/update 数量）；
+- CSV 导出路径。
 ```
 
-运行“人才库同步（新增/更新）”：
+OpenClaw 会按 `SKILL.md` 自动调用 `scripts/run.py`，通常不需要人工手动执行命令。
+
+## 3. 手动指令
+
+说明：OpenClaw 会根据 `SKILL.md` 自动执行这些命令；一般只在调试时手动运行。
 
 ```powershell
+# 1) 抓取 arXiv（可选持久化）
+python -m hunter_agent.cli arxiv-daily-authors --date 2026-03-07 --categories cs.RO --persist-mentions
+
+# 2) 单条 upsert
 python -m hunter_agent.cli talent-upsert --json .\examples\sample_profile.json
+
+# 3) 批量 upsert
+python -m hunter_agent.cli talent-bulk-upsert --json .\examples\sample_bulk_profiles.json
+
+# 4) 按姓名查询
+python -m hunter_agent.cli talent-find --name "Li Lei"
+
+# 5) 导出 CSV
+python -m hunter_agent.cli export --out .\exports\talents.csv
 ```
 
-运行“人才库查询”：
+## 4. 代码架构和原理
 
-```powershell
-python -m hunter_agent.cli talent-find --name 李雷
-```
+- `src/hunter_agent/arxiv`：arXiv API 抓取与 HTML 解析。
+- `src/hunter_agent/skills`：skill 入口逻辑。
+- `src/hunter_agent/db`：SQLite 连接、迁移、仓储。
+- `src/hunter_agent/services`：人才去重、导出等服务层。
+- `skills/*`：OpenClaw skill 定义（`SKILL.md` + `scripts/run.py`）。
 
-导出数据：
+关键设计：
+- 按本地日期换算为 UTC 查询窗口，降低跨时区漏抓风险。
+- 人才去重结合姓名、联系方式、机构等信号；冲突时强制新建。
+- 作者研究方向通过 `project_categories` 多标签落库（一人可多领域）。
 
-```powershell
-python -m hunter_agent.cli export --format csv --out .\exports\talents.csv
-python -m hunter_agent.cli export --format xlsx --out .\exports\talents.xlsx
-```
-
-## 3. 代码架构和原理
-
-核心目录：
-
-1. `src/hunter_agent/arxiv`：arXiv API 抓取、HTML 机构补全、按日聚合。
-2. `src/hunter_agent/skills`：两个业务能力的统一调用入口。
-3. `src/hunter_agent/db`：SQLite 连接、迁移、仓储层。
-4. `src/hunter_agent/services`：导出服务、去重评分服务。
-5. `src/hunter_agent/common`：Schema、枚举、日期与归一化工具。
-6. `skills/*`：OpenClaw 技能封装（`SKILL.md + scripts/run.py`）。
-7. `docs/openclaw-protocol.md` 与 `docs/schemas/*.json`：固定的调用协议与 JSON Schema。
-
-关键原理：
-
-1. 日期抓取使用“本地时区日期 -> UTC 时间窗”转换，避免东八区按 UTC 查询导致漏数。
-2. 人才去重采用“模糊匹配 + 冲突评分”：
-   - 姓名相似度、联系方式一致性、机构信息共同计分；
-   - 联系方式冲突触发硬冲突，强制新建，避免误合并。
-3. 采集链路支持“抓取后落库 paper / paper_author_mention”，便于追溯来源。
-
-## 4. 如何测试
-
-运行全部单元测试：
+## 5. 如何测试
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-只运行人才库同步相关测试：
+仅测试人才库同步：
 
 ```powershell
 python -m unittest tests.test_talent_database_sync -v
 ```
 
-运行 arXiv 联网集成测试（会访问网络）：
+联网集成测试（访问 arXiv）：
 
 ```powershell
 $env:RUN_INTEGRATION='1'
 python -m unittest tests.test_arxiv_robotics_daily_collector_integration -v
 ```
-
-说明：
-
-1. 未设置 `RUN_INTEGRATION=1` 时，联网测试会自动跳过。
-2. 命令 `arxiv-daily-authors` 会在终端打印执行步骤（请求、解析、落库进度）。

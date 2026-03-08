@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS paper (
   title TEXT NOT NULL,
   published_date TEXT,
   categories_json TEXT NOT NULL DEFAULT '[]',
+  summary TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

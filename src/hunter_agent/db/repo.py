@@ -28,8 +28,17 @@ class TalentRepository:
         conn = connect(self.db_path)
         try:
             run_sql_script(conn, migration_file)
+            self._ensure_paper_summary_column(conn)
         finally:
             conn.close()
+
+    def _ensure_paper_summary_column(self, conn: sqlite3.Connection) -> None:
+        existing = conn.execute("PRAGMA table_info(paper)").fetchall()
+        columns = {row["name"] for row in existing}
+        if "summary" in columns:
+            return
+        conn.execute("ALTER TABLE paper ADD COLUMN summary TEXT")
+        conn.commit()
 
     def find_talents_by_name(self, name: str) -> list[dict]:
         normalized = normalize_name(name)
@@ -84,6 +93,7 @@ class TalentRepository:
                     title=record.paper_title,
                     published_date=None,
                     categories=categories,
+                    summary=record.paper_summary,
                 )
                 for author_name in record.authors:
                     conn.execute(
@@ -353,18 +363,26 @@ class TalentRepository:
         title: str,
         published_date: str | None,
         categories: list[str],
+        summary: str | None,
     ) -> int:
         conn.execute(
             """
-            INSERT INTO paper (arxiv_id, title, published_date, categories_json)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO paper (arxiv_id, title, published_date, categories_json, summary)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(arxiv_id) DO UPDATE SET
               title = excluded.title,
               published_date = excluded.published_date,
               categories_json = excluded.categories_json,
+              summary = excluded.summary,
               updated_at = datetime('now')
             """,
-            (arxiv_id, title, published_date, json.dumps(categories, ensure_ascii=False)),
+            (
+                arxiv_id,
+                title,
+                published_date,
+                json.dumps(categories, ensure_ascii=False),
+                summary,
+            ),
         )
         row = conn.execute(
             "SELECT id FROM paper WHERE arxiv_id = ?",

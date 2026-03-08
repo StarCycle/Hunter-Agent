@@ -5,7 +5,10 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from hunter_agent.db.repo import TalentRepository
-from hunter_agent.skills.talent_database_sync import run_talent_database_sync
+from hunter_agent.skills.talent_database_sync import (
+    run_talent_database_bulk_upsert,
+    run_talent_database_sync,
+)
 
 
 class TestSkillB(unittest.TestCase):
@@ -130,6 +133,60 @@ class TestSkillB(unittest.TestCase):
             self.assertEqual(conflict["profile"]["operation"], "insert")
             self.assertTrue(conflict["profile"]["dedup"]["conflict"])
             self.assertTrue(conflict["profile"]["dedup"].get("forced_insert"))
+
+    def test_bulk_upsert(self) -> None:
+        with TemporaryDirectory() as tmp_dir:
+            repo = TalentRepository(Path(tmp_dir) / "hunter.db")
+            repo.init_db()
+
+            bulk_payload = {
+                "profiles": [
+                    {
+                        "name": "Batch Alpha",
+                        "email": "alpha@example.com",
+                        "institution": "First Lab",
+                    },
+                    {
+                        "name": "Batch Beta",
+                        "email": "beta@example.com",
+                        "institution": "Second Lab",
+                    },
+                ]
+            }
+            result = run_talent_database_bulk_upsert(bulk_payload, repo=repo)
+            self.assertEqual(result["action"], "bulk-upsert")
+            self.assertEqual(len(result["profiles"]), 2)
+            self.assertTrue(all(item["operation"] == "insert" for item in result["profiles"]))
+            names = {item["talent"]["name"] for item in result["profiles"]}
+            self.assertEqual(names, {"Batch Alpha", "Batch Beta"})
+            rows = repo.export_table_rows("talent")
+            self.assertEqual(len(rows), 2)
+
+    def test_export_from_skill(self) -> None:
+        with TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            repo = TalentRepository(tmp_path / "hunter.db")
+            repo.init_db()
+
+            run_talent_database_sync(
+                {
+                    "action": "upsert",
+                    "profile": {
+                        "name": "Export Candidate",
+                        "email": "export@example.com",
+                    },
+                },
+                repo=repo,
+            )
+            export_path = tmp_path / "talents.csv"
+            result = run_talent_database_sync(
+                {"action": "export", "out_csv": str(export_path)},
+                repo=repo,
+            )
+            self.assertEqual(result["action"], "export")
+            self.assertEqual(result["output"], str(export_path))
+            self.assertTrue(export_path.exists())
+            self.assertGreater(export_path.stat().st_size, 0)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
----
+﻿---
 name: arxiv-robotics-daily
-description: Collect daily arXiv robotics papers with title, url, author list, and raw affiliation_info extracted from arXiv HTML pages. Use when OpenClaw needs paper-level author context for downstream talent mining.
+description: Collect daily arXiv robotics papers with title, url, author list, affiliation_info, and paper_summary for downstream talent mining.
 ---
 
 # arxiv-robotics-daily
@@ -26,7 +26,8 @@ The script returns:
       "paper_title": "Paper Title",
       "paper_url": "https://arxiv.org/abs/2603.00001",
       "authors": ["Author A", "Author B"],
-      "affiliation_info": "Raw text extracted from https://arxiv.org/html/<id>, usually containing title/author block and possible institution clues."
+      "affiliation_info": "Raw text extracted from https://arxiv.org/html/<id>",
+      "paper_summary": "Abstract text from arXiv API"
     }
   ]
 }
@@ -34,5 +35,6 @@ The script returns:
 
 ## Notes
 
-- `affiliation_info` is intentionally unstructured raw text for LLM parsing downstream.
-- Keep output paper-level to reduce token usage.
+- `affiliation_info` is intentionally unstructured raw text for downstream parsing.
+- `paper_summary` should be used for research-domain classification.
+- The bundled `scripts/run.py` already ensures SQLite schema initialization (`repo.init_db()`).

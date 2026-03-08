@@ -17,6 +17,7 @@ class ArxivPaperAffiliationRecord(BaseModel):
     paper_url: str
     authors: list[str] = Field(default_factory=list)
     affiliation_info: str | None = None
+    paper_summary: str | None = None
 
 
 class ArxivSkillOutput(BaseModel):
@@ -51,9 +52,10 @@ class TalentProfile(BaseModel):
 
 
 class SkillBInput(BaseModel):
-    action: Literal["find", "upsert"]
+    action: Literal["find", "upsert", "export"]
     name: str | None = None
     profile: TalentProfile | None = None
+    out_csv: str | None = None
 
     @model_validator(mode="after")
     def validate_action_input(self) -> "SkillBInput":
@@ -107,6 +109,11 @@ class TalentView(BaseModel):
     operation: Literal["insert", "update"] | None = None
 
 
+class TalentBulkUpsertOutput(BaseModel):
+    action: Literal["bulk-upsert"] = "bulk-upsert"
+    profiles: list[TalentView]
+
+
 class SkillBFindOutput(BaseModel):
     action: Literal["find"] = "find"
     name: str
@@ -116,3 +123,18 @@ class SkillBFindOutput(BaseModel):
 class SkillBUpsertOutput(BaseModel):
     action: Literal["upsert"] = "upsert"
     profile: TalentView
+
+
+class SkillBExportOutput(BaseModel):
+    action: Literal["export"] = "export"
+    output: str
+
+
+class TalentBulkUpsertInput(BaseModel):
+    profiles: list[TalentProfile]
+
+    @model_validator(mode="after")
+    def validate_profiles(self) -> "TalentBulkUpsertInput":
+        if not self.profiles:
+            raise ValueError("At least one profile is required for bulk upsert.")
+        return self
