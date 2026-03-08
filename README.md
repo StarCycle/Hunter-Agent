@@ -25,10 +25,11 @@
 - 把 `src/hunter_agent` 复制到 `%USERPROFILE%\.openclaw\workspace\src\hunter_agent`。
 - 在仓库根目录执行：`python -m pip install -e .`。
 
-3. OpenClaw 定时任务推荐 Prompt（昨日论文 -> 人才库 -> CSV）
+3. OpenClaw 定时任务推荐 Prompt（上周论文 -> 人才库 -> CSV）
 
 ```text
-使用 arxiv-robotics-daily skill 抓取“昨天”arXiv 上具身智能相关论文（返回题目、作者、affiliation、摘要）。
+使用 arxiv-robotics-daily skill 抓取上一周arXiv上具身智能相关论文（返回题目、作者、affiliation info、摘要）。
+这个skill每次抓取一天的arxiv具身智能论文，你需要连续调用这个skill，以得到上周所有工作日的arxiv论文信息。
 
 然后基于返回结果执行以下流程：
 1) 只保留疑似华人作者，忽略非华人作者；
