@@ -37,11 +37,11 @@ class ArxivClient:
     def __init__(
         self,
         timeout_seconds: int = 20,
-        max_results: int = 2000,
+        chunk_size: int = 500,
         local_timezone: str = "Asia/Shanghai",
     ) -> None:
         self.timeout_seconds = timeout_seconds
-        self.max_results = max_results
+        self.chunk_size = max(1, chunk_size)
         self.local_timezone = local_timezone
         self.session = requests.Session()
 
@@ -53,18 +53,28 @@ class ArxivClient:
         cat_query = " OR ".join(f"cat:{c}" for c in categories)
         submitted_range = self.build_submitted_date_range(query_date)
         search_query = f"({cat_query}) AND {submitted_range}"
-        params = {
-            "search_query": search_query,
-            "start": 0,
-            "max_results": self.max_results,
-            "sortBy": "submittedDate",
-            "sortOrder": "ascending",
-        }
-        response = self.session.get(
-            ARXIV_API_ENDPOINT, params=params, timeout=self.timeout_seconds
-        )
-        response.raise_for_status()
-        return self._parse_feed(response.text)
+        papers: list[ArxivPaper] = []
+        start = 0
+        while True:
+            params = {
+                "search_query": search_query,
+                "start": start,
+                "max_results": self.chunk_size,
+                "sortBy": "submittedDate",
+                "sortOrder": "ascending",
+            }
+            response = self.session.get(
+                ARXIV_API_ENDPOINT, params=params, timeout=self.timeout_seconds
+            )
+            response.raise_for_status()
+            batch = self._parse_feed(response.text)
+            if not batch:
+                break
+            papers.extend(batch)
+            if len(batch) < self.chunk_size:
+                break
+            start += len(batch)
+        return papers
 
     def build_submitted_date_range(self, query_date: date) -> str:
         tz = _resolve_timezone(self.local_timezone)

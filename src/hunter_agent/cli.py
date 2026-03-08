@@ -79,13 +79,12 @@ def main() -> None:
         categories = [item.strip() for item in args.categories.split(",") if item.strip()]
         payload = {"date": args.date, "categories": categories}
         _log_step("Starting daily arXiv paper collection")
-        result = run_arxiv_robotics_daily_collector(
-            payload=payload,
-            arxiv_client=ArxivClient(
-                timeout_seconds=settings.http_timeout_seconds,
-                max_results=settings.arxiv_max_results,
-                local_timezone=settings.arxiv_local_timezone,
-            ),
+            result = run_arxiv_robotics_daily_collector(
+                payload=payload,
+                arxiv_client=ArxivClient(
+                    timeout_seconds=settings.http_timeout_seconds,
+                    local_timezone=settings.arxiv_local_timezone,
+                ),
             html_parser=ArxivHtmlParser(timeout_seconds=settings.http_timeout_seconds),
             repo=repo,
             persist_mentions=args.persist_mentions,

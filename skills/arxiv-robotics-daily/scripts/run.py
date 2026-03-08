@@ -33,7 +33,6 @@ def main() -> None:
         payload=payload,
         arxiv_client=ArxivClient(
             timeout_seconds=settings.http_timeout_seconds,
-            max_results=settings.arxiv_max_results,
             local_timezone=settings.arxiv_local_timezone,
         ),
         html_parser=ArxivHtmlParser(timeout_seconds=settings.http_timeout_seconds),

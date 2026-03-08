@@ -38,3 +38,4 @@ The script returns:
 - `affiliation_info` is intentionally unstructured raw text for downstream parsing.
 - `paper_summary` should be used for research-domain classification.
 - The bundled `scripts/run.py` already ensures SQLite schema initialization (`repo.init_db()`).
+- This skill paginates the arXiv feed until no more entries return, so it always attempts to retrieve every paper for the requested day without a hard max-results cap.

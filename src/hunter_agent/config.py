@@ -9,7 +9,6 @@ from pathlib import Path
 class Settings:
     db_path: Path
     export_dir: Path
-    arxiv_max_results: int
     http_timeout_seconds: int
     arxiv_local_timezone: str
 
@@ -17,13 +16,11 @@ class Settings:
 def get_settings() -> Settings:
     db_path = Path(os.getenv("HUNTER_DB_PATH", "data/hunter.db"))
     export_dir = Path(os.getenv("HUNTER_EXPORT_DIR", "exports"))
-    arxiv_max_results = int(os.getenv("HUNTER_ARXIV_MAX_RESULTS", "2000"))
     http_timeout_seconds = int(os.getenv("HUNTER_HTTP_TIMEOUT_SECONDS", "20"))
     arxiv_local_timezone = os.getenv("HUNTER_ARXIV_LOCAL_TIMEZONE", "Asia/Shanghai")
     return Settings(
         db_path=db_path,
         export_dir=export_dir,
-        arxiv_max_results=arxiv_max_results,
         http_timeout_seconds=http_timeout_seconds,
         arxiv_local_timezone=arxiv_local_timezone,
     )
