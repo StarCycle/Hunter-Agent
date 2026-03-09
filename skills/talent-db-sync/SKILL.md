@@ -1,4 +1,4 @@
-﻿---
+---
 name: talent-db-sync
 description: Find, upsert, and export embodied AI talent records in SQLite.
 ---
@@ -66,3 +66,8 @@ One profile can have multiple categories. Use zero to many entries in `project_c
 - Contact values are normalized for deduplication.
 - If `project_categories` is non-empty, existing categories for that talent are replaced.
 - `scripts/run.py` bootstraps SQLite (`repo.init_db()`), so no separate `init-db` call is required.
+## OpenClaw Troubleshooting
+
+- If OpenClaw cannot detect this skill, verify the folder path is `~/.openclaw/workspace/skills/talent-db-sync`.
+- Ensure `SKILL.md` and `scripts/run.py` both exist and the skill folder name matches `name: talent-db-sync`.
+- If changes are not picked up, start a new session or restart ClawX/OpenClaw so skill metadata is reloaded.
