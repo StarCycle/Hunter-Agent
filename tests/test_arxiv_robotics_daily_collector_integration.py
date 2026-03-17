@@ -29,7 +29,7 @@ class TestSkillAIntegration(unittest.TestCase):
                 payload={"date": query_date, "categories": ["cs.RO"]},
                 arxiv_client=ArxivClient(
                     timeout_seconds=30,
-                    max_results=200,
+                    chunk_size=200,
                     local_timezone="Asia/Hong_Kong",
                 ),
                 html_parser=ArxivHtmlParser(timeout_seconds=30),

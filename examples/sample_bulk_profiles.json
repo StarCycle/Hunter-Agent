@@ -5,20 +5,22 @@
       "wechat": "batch_alpha",
       "email": "batch.alpha@example.com",
       "project_categories": [
-        "Manipulation绠楁硶"
+        "manipulation"
       ],
       "education": "PhD candidate",
       "institution": "Robotics Lab A",
+      "position": "phd",
       "notes": "Example for batch upload"
     },
     {
       "name": "Batch Beta",
       "phone": "+86 13900000002",
       "project_categories": [
-        "鍏跺畠:Custom Hardware"
+        "other:custom hardware"
       ],
       "education": "Master",
       "institution": "Robotics Lab B",
+      "position": "masters",
       "grade_or_years": "2 years"
     }
   ]

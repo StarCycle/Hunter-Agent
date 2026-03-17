@@ -6,6 +6,7 @@ from typing import Callable
 from hunter_agent.arxiv.client import ArxivClient
 from hunter_agent.arxiv.parser import ArxivHtmlParser
 from hunter_agent.common.schemas import ArxivPaperAffiliationRecord
+from hunter_agent.common.utils import iter_date_range
 
 
 class ArxivDailyService:
@@ -50,3 +51,35 @@ class ArxivDailyService:
         if progress_cb:
             progress_cb(f"Paper records built, total {len(records)}")
         return records
+
+
+class ArxivRangeService:
+    def __init__(self, daily_service: ArxivDailyService) -> None:
+        self.daily_service = daily_service
+
+    def collect_range_paper_records(
+        self,
+        start_date: date,
+        end_date: date,
+        categories: list[str],
+        progress_cb: Callable[[str], None] | None = None,
+    ) -> list[dict]:
+        days: list[dict] = []
+        total_days = (end_date - start_date).days + 1
+        for offset, query_date in enumerate(iter_date_range(start_date, end_date), start=1):
+            if progress_cb:
+                progress_cb(
+                    f"Collecting {query_date.isoformat()} ({offset}/{total_days})"
+                )
+            records = self.daily_service.collect_daily_paper_records(
+                query_date=query_date,
+                categories=categories,
+                progress_cb=progress_cb,
+            )
+            days.append(
+                {
+                    "date": query_date.isoformat(),
+                    "records": [record.model_dump() for record in records],
+                }
+            )
+        return days

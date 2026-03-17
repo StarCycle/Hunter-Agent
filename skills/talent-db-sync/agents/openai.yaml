@@ -1,5 +1,0 @@
-version: 1
-interface:
-  display_name: Talent DB Sync
-  short_description: Find and upsert candidate profiles in SQLite.
-  default_prompt: Query and update embodied AI talent profiles by name and contacts.

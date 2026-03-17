@@ -4,12 +4,24 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from hunter_agent.common.enums import PROJECT_CATEGORIES
+from hunter_agent.common.utils import normalize_name, normalize_project_category, parse_iso_date
 
 
 class ArxivSkillInput(BaseModel):
     date: str = Field(description="Query date in YYYY-MM-DD.")
     categories: list[str] = Field(default_factory=lambda: ["cs.RO"])
+
+
+class ArxivRangeInput(BaseModel):
+    start_date: str = Field(description="Range start date in YYYY-MM-DD.")
+    end_date: str = Field(description="Range end date in YYYY-MM-DD.")
+    categories: list[str] = Field(default_factory=lambda: ["cs.RO"])
+
+    @model_validator(mode="after")
+    def validate_date_order(self) -> "ArxivRangeInput":
+        if parse_iso_date(self.start_date) > parse_iso_date(self.end_date):
+            raise ValueError("start_date must be earlier than or equal to end_date.")
+        return self
 
 
 class ArxivPaperAffiliationRecord(BaseModel):
@@ -25,6 +37,40 @@ class ArxivSkillOutput(BaseModel):
     records: list[ArxivPaperAffiliationRecord]
 
 
+class ArxivRangeDayOutput(BaseModel):
+    date: str
+    records: list[ArxivPaperAffiliationRecord]
+
+
+class ArxivRangeOutput(BaseModel):
+    start_date: str
+    end_date: str
+    days: list[ArxivRangeDayOutput]
+
+
+class AuthorCandidatePaperEvidence(BaseModel):
+    source_date: str
+    paper_title: str
+    paper_url: str
+    affiliation_info: str | None = None
+    paper_summary: str | None = None
+
+
+class AuthorCandidate(BaseModel):
+    author_name: str
+    normalized_name: str
+    paper_count: int
+    source_dates: list[str] = Field(default_factory=list)
+    affiliation_clues: list[str] = Field(default_factory=list)
+    papers: list[AuthorCandidatePaperEvidence] = Field(default_factory=list)
+
+
+class AuthorCandidateOutput(BaseModel):
+    start_date: str | None = None
+    end_date: str | None = None
+    authors: list[AuthorCandidate]
+
+
 class TalentProfile(BaseModel):
     name: str
     wechat: str | None = None
@@ -33,20 +79,39 @@ class TalentProfile(BaseModel):
     project_categories: list[str] = Field(default_factory=list)
     education: str | None = None
     institution: str | None = None
+    position: str | None = None
     grade_or_years: str | None = None
+    city: str | None = None
+    country: str | None = None
+    graduation_time: str | None = None
+    research_fields: str | None = None
+    homepage_url: str | None = None
     resume_pdf: str | None = None
+    source_links: str | None = None
+    evidence_summary: str | None = None
     notes: str | None = None
 
     @model_validator(mode="after")
     def validate_project_categories(self) -> "TalentProfile":
-        for item in self.project_categories:
-            if item in PROJECT_CATEGORIES:
-                continue
-            if item.startswith("其它:"):
-                continue
+        self.project_categories = [
+            normalize_project_category(item) for item in self.project_categories
+        ]
+        return self
+
+    @model_validator(mode="after")
+    def validate_position(self) -> "TalentProfile":
+        allowed_positions = {
+            "undergraduate",
+            "masters",
+            "phd",
+            "postdoc",
+            "faculty",
+            "academia",
+            "industry",
+        }
+        if self.position and self.position not in allowed_positions:
             raise ValueError(
-                f"Unsupported project category: {item}. "
-                f"Allowed: {PROJECT_CATEGORIES} or use '其它:自定义内容'."
+                "position must be one of: undergraduate, masters, phd, postdoc, faculty, academia, industry."
             )
         return self
 
@@ -80,8 +145,16 @@ class TalentCore(BaseModel):
     normalized_name: str
     education: str | None = None
     institution: str | None = None
+    position: str | None = None
     grade_or_years: str | None = None
+    city: str | None = None
+    country: str | None = None
+    graduation_time: str | None = None
+    research_fields: str | None = None
+    homepage_url: str | None = None
     resume_pdf: str | None = None
+    source_links: str | None = None
+    evidence_summary: str | None = None
     notes: str | None = None
     created_at: str
     updated_at: str
@@ -138,3 +211,16 @@ class TalentBulkUpsertInput(BaseModel):
         if not self.profiles:
             raise ValueError("At least one profile is required for bulk upsert.")
         return self
+
+
+class AuthorCandidateSeed(BaseModel):
+    source_date: str
+    paper_title: str
+    paper_url: str
+    authors: list[str] = Field(default_factory=list)
+    affiliation_info: str | None = None
+    paper_summary: str | None = None
+
+    @property
+    def normalized_authors(self) -> list[tuple[str, str]]:
+        return [(author_name, normalize_name(author_name)) for author_name in self.authors]

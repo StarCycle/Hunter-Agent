@@ -1,0 +1,20 @@
+{
+  "profiles": [
+    {
+      "name": "Li Wei",
+      "institution": "Example Robotics Lab",
+      "position": "phd",
+      "city": "Shanghai",
+      "country": "China",
+      "graduation_time": "2025 PhD",
+      "research_fields": "robot learning, embodied intelligence",
+      "email": "liwei@example.com",
+      "phone": "",
+      "wechat": "",
+      "homepage_url": "",
+      "source_links": "https://example.com/liwei; https://scholar.google.com/citations?user=example",
+      "evidence_summary": "Institution and graduation time confirmed from public lab profile and publication page.",
+      "notes": ""
+    }
+  ]
+}

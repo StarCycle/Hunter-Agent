@@ -10,6 +10,7 @@ from hunter_agent.arxiv.parser import ArxivHtmlParser
 from hunter_agent.config import get_settings
 from hunter_agent.db.repo import TalentRepository
 from hunter_agent.services.export_service import ExportService
+from hunter_agent.skills.arxiv_range_authors import run_arxiv_range_authors
 from hunter_agent.skills.arxiv_robotics_daily_collector import (
     run_arxiv_robotics_daily_collector,
 )
@@ -38,6 +39,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Persist paper/author mentions to SQLite.",
     )
     parser_a.add_argument("--out-json", default="", help="Optional output JSON path.")
+
+    parser_range = sub.add_parser("arxiv-range-authors")
+    parser_range.add_argument("--start-date", default="", help="YYYY-MM-DD")
+    parser_range.add_argument("--end-date", default="", help="YYYY-MM-DD")
+    parser_range.add_argument(
+        "--categories",
+        default="cs.RO",
+        help="Comma-separated arXiv categories, e.g. cs.RO,cs.AI",
+    )
+    parser_range.add_argument("--out-json", default="", help="Optional output JSON path.")
 
     parser_b_find = sub.add_parser("talent-find")
     parser_b_find.add_argument("--name", required=True)
@@ -79,15 +90,36 @@ def main() -> None:
         categories = [item.strip() for item in args.categories.split(",") if item.strip()]
         payload = {"date": args.date, "categories": categories}
         _log_step("Starting daily arXiv paper collection")
-            result = run_arxiv_robotics_daily_collector(
-                payload=payload,
-                arxiv_client=ArxivClient(
-                    timeout_seconds=settings.http_timeout_seconds,
-                    local_timezone=settings.arxiv_local_timezone,
-                ),
+        result = run_arxiv_robotics_daily_collector(
+            payload=payload,
+            arxiv_client=ArxivClient(
+                timeout_seconds=settings.http_timeout_seconds,
+                local_timezone=settings.arxiv_local_timezone,
+            ),
             html_parser=ArxivHtmlParser(timeout_seconds=settings.http_timeout_seconds),
             repo=repo,
             persist_mentions=args.persist_mentions,
+            progress_cb=_log_step,
+        )
+        _log_step("Writing output")
+        _write_json_output(result, args.out_json)
+        return
+
+    if args.command == "arxiv-range-authors":
+        categories = [item.strip() for item in args.categories.split(",") if item.strip()]
+        payload = {
+            "start_date": args.start_date,
+            "end_date": args.end_date,
+            "categories": categories,
+        }
+        _log_step("Starting arXiv author candidate collection")
+        result = run_arxiv_range_authors(
+            payload=payload,
+            arxiv_client=ArxivClient(
+                timeout_seconds=settings.http_timeout_seconds,
+                local_timezone=settings.arxiv_local_timezone,
+            ),
+            html_parser=ArxivHtmlParser(timeout_seconds=settings.http_timeout_seconds),
             progress_cb=_log_step,
         )
         _log_step("Writing output")

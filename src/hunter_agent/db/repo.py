@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 from urllib.parse import urlparse
 
+from hunter_agent.common.enums import LEGACY_PROJECT_CATEGORY_ALIASES
 from hunter_agent.common.schemas import ArxivPaperAffiliationRecord, TalentProfile
 from hunter_agent.common.utils import (
     normalize_email,
@@ -22,15 +23,34 @@ class TalentRepository:
         self.dedup_service = DedupService()
 
     def init_db(self) -> None:
-        migration_file = (
-            Path(__file__).resolve().parent / "migrations" / "001_init.sql"
-        )
+        migration_file = Path(__file__).resolve().parent / "migrations" / "001_init.sql"
         conn = connect(self.db_path)
         try:
             run_sql_script(conn, migration_file)
+            self._ensure_talent_columns(conn)
             self._ensure_paper_summary_column(conn)
+            self._normalize_legacy_project_tags(conn)
         finally:
             conn.close()
+
+    def _ensure_talent_columns(self, conn: sqlite3.Connection) -> None:
+        existing = conn.execute("PRAGMA table_info(talent)").fetchall()
+        columns = {row["name"] for row in existing}
+        required_columns = {
+            "city": "TEXT",
+            "country": "TEXT",
+            "graduation_time": "TEXT",
+            "research_fields": "TEXT",
+            "homepage_url": "TEXT",
+            "source_links": "TEXT",
+            "evidence_summary": "TEXT",
+            "position": "TEXT",
+        }
+        for column_name, column_type in required_columns.items():
+            if column_name in columns:
+                continue
+            conn.execute(f"ALTER TABLE talent ADD COLUMN {column_name} {column_type}")
+        conn.commit()
 
     def _ensure_paper_summary_column(self, conn: sqlite3.Connection) -> None:
         existing = conn.execute("PRAGMA table_info(paper)").fetchall()
@@ -38,6 +58,31 @@ class TalentRepository:
         if "summary" in columns:
             return
         conn.execute("ALTER TABLE paper ADD COLUMN summary TEXT")
+        conn.commit()
+
+    def _normalize_legacy_project_tags(self, conn: sqlite3.Connection) -> None:
+        updates = {
+            legacy: slug
+            for legacy, slug in LEGACY_PROJECT_CATEGORY_ALIASES.items()
+            if slug != "other"
+        }
+        for legacy, slug in updates.items():
+            conn.execute(
+                """
+                UPDATE talent_project_tag
+                SET category = ?
+                WHERE category = ?
+                """,
+                (slug, legacy),
+            )
+        conn.execute(
+            """
+            UPDATE talent_project_tag
+            SET category = 'other'
+            WHERE category = ?
+            """,
+            ("鍏朵粬",),
+        )
         conn.commit()
 
     def find_talents_by_name(self, name: str) -> list[dict]:
@@ -122,12 +167,20 @@ class TalentRepository:
             rows = conn.execute(
                 """
                 SELECT
-                  t.id AS talent_id,
+                  t.id,
                   t.name,
                   t.education,
                   t.institution,
+                  t.position,
                   t.grade_or_years,
+                  t.city,
+                  t.country,
+                  t.graduation_time,
+                  t.research_fields,
+                  t.homepage_url,
                   t.resume_pdf,
+                  t.source_links,
+                  t.evidence_summary,
                   t.notes,
                   t.created_at,
                   t.updated_at
@@ -137,7 +190,7 @@ class TalentRepository:
             ).fetchall()
             result: list[dict] = []
             for row in rows:
-                talent_id = row["talent_id"]
+                talent_id = row["id"]
                 contacts = conn.execute(
                     """
                     SELECT type, value FROM talent_contact
@@ -155,6 +208,7 @@ class TalentRepository:
                     (talent_id,),
                 ).fetchall()
                 row_dict = dict(row)
+                row_dict.pop("id", None)
                 row_dict["wechat"] = _first_contact(contacts, "wechat")
                 row_dict["phone"] = _first_contact(contacts, "phone")
                 row_dict["email"] = _first_contact(contacts, "email")
@@ -201,7 +255,6 @@ class TalentRepository:
         if decision.candidate_id is None:
             return None, decision_payload
         if decision.conflict:
-            # Hard conflicts are treated as distinct talents.
             decision_payload["forced_insert"] = True
             return None, decision_payload
         return decision.candidate_id, decision_payload
@@ -245,7 +298,6 @@ class TalentRepository:
             for row in inst_rows:
                 candidate_ids.add(int(row["id"]))
 
-        # Fuzzy pool: recent talents for near-name matching.
         recent_rows = conn.execute(
             """
             SELECT id FROM talent
@@ -264,8 +316,12 @@ class TalentRepository:
     def _insert_talentsql(self) -> str:
         return """
         INSERT INTO talent
-        (name, normalized_name, education, institution, grade_or_years, resume_pdf, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (
+          name, normalized_name, education, institution, position, grade_or_years, city, country,
+          graduation_time, research_fields, homepage_url, resume_pdf, source_links,
+          evidence_summary, notes
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
     def _insert_talent(self, conn: sqlite3.Connection, profile: TalentProfile) -> int:
@@ -276,8 +332,16 @@ class TalentRepository:
                 normalize_name(profile.name),
                 profile.education,
                 profile.institution,
+                profile.position,
                 profile.grade_or_years,
+                profile.city,
+                profile.country,
+                profile.graduation_time,
+                profile.research_fields,
+                profile.homepage_url,
                 profile.resume_pdf,
+                profile.source_links,
+                profile.evidence_summary,
                 profile.notes,
             ),
         )
@@ -295,8 +359,16 @@ class TalentRepository:
             "normalized_name": normalize_name(profile.name or current["name"]),
             "education": profile.education or current["education"],
             "institution": profile.institution or current["institution"],
+            "position": profile.position or current["position"],
             "grade_or_years": profile.grade_or_years or current["grade_or_years"],
+            "city": profile.city or current["city"],
+            "country": profile.country or current["country"],
+            "graduation_time": profile.graduation_time or current["graduation_time"],
+            "research_fields": profile.research_fields or current["research_fields"],
+            "homepage_url": profile.homepage_url or current["homepage_url"],
             "resume_pdf": profile.resume_pdf or current["resume_pdf"],
+            "source_links": profile.source_links or current["source_links"],
+            "evidence_summary": profile.evidence_summary or current["evidence_summary"],
             "notes": profile.notes or current["notes"],
         }
         conn.execute(
@@ -306,8 +378,16 @@ class TalentRepository:
               normalized_name = ?,
               education = ?,
               institution = ?,
+              position = ?,
               grade_or_years = ?,
+              city = ?,
+              country = ?,
+              graduation_time = ?,
+              research_fields = ?,
+              homepage_url = ?,
               resume_pdf = ?,
+              source_links = ?,
+              evidence_summary = ?,
               notes = ?,
               updated_at = datetime('now')
             WHERE id = ?
@@ -317,8 +397,16 @@ class TalentRepository:
                 merged["normalized_name"],
                 merged["education"],
                 merged["institution"],
+                merged["position"],
                 merged["grade_or_years"],
+                merged["city"],
+                merged["country"],
+                merged["graduation_time"],
+                merged["research_fields"],
+                merged["homepage_url"],
                 merged["resume_pdf"],
+                merged["source_links"],
+                merged["evidence_summary"],
                 merged["notes"],
                 talent_id,
             ),

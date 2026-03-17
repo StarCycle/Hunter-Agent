@@ -16,19 +16,26 @@ class ExportService:
         if not rows:
             rows = [
                 {
-                    "talent_id": "",
                     "name": "",
+                    "education": "",
+                    "institution": "",
+                    "position": "",
+                    "grade_or_years": "",
+                    "city": "",
+                    "country": "",
+                    "graduation_time": "",
+                    "research_fields": "",
+                    "homepage_url": "",
+                    "resume_pdf": "",
+                    "source_links": "",
+                    "evidence_summary": "",
+                    "notes": "",
+                    "created_at": "",
+                    "updated_at": "",
                     "wechat": "",
                     "phone": "",
                     "email": "",
                     "project_categories": "",
-                    "education": "",
-                    "institution": "",
-                    "grade_or_years": "",
-                    "resume_pdf": "",
-                    "notes": "",
-                    "created_at": "",
-                    "updated_at": "",
                 }
             ]
         with output_path.open("w", encoding="utf-8-sig", newline="") as fp:
